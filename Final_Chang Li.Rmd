@@ -1,0 +1,476 @@
+---
+title: "911 Emergency Calls Received At Montgomery County, Pennsylvania"
+author: "Chang Li"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load any libraries you need here
+library(tidyverse)
+library(moments)
+library(rgdal)
+library(broom)
+
+```
+
+# Introduction
+
+911 has been designed for people in the U.S. and some in International countries call to get help in a police, fire, or medical emergency. It is intended as a "Universal Emergency Number" to gives the public fast and easy access to a Public Safety Answering Point(PSAP). 
+
+In 1967, the President's Commission of Law Enforcement and Administration of Justice recommended the creation of a single number that could be used nationwide for reporting emergencies rather than different telephone numbers for each type of emergency. In 1968, the Federal Communications Commission met with AT&T and announced the number "9-1-1" as the chosen number.
+
+Data source:
+[911 Data](https://www.kaggle.com/mchirico/montcoalert)
+
+The report is going to analyze the 911 emergency calls received (including categories of EMS, Fire, and Traffic) for Montgomery County, Pennsylvania from December 2015 to July 2020. I am going to focus only on the data in the year 2019. The analysis will be divided into three sections and followed by the questions that will be answered within:
+
+1. Analysis of the categories of emergency calls in 2019 at the Montgomery County.
+    + How frequent of every category of emergency/accident perform in 2019?
+    + If the count of calls is dependent upon the types ("title" variable) of emergency?
+2. Analysis of the types of emergency calls in 2019 at Montgomery County.
+    + How are each type of emergency/accident located on the map? 
+    + What is the distribution of that? 
+    + What is the frequency of each type in 2019? 
+    + If the count of calls is dependent upon the zip code of emergency?
+3. Analysis on the emergency calls in 2019 at only with zip code 19464 (Pottstown).
+    + How is each category performed in a  single town in 2019? 
+    + What is the distribution of that? 
+    + How are each category located? 
+    + Is there a relationship between the emergency cases and the weather or the precipitation?
+    
+* Alpha level = 0.05
+
+```{r}
+
+# Load the 911 data
+# Mutate the data set in order to manage the data in future analysis
+
+data911 <- read_csv("./data/911 PA 2019.csv") %>%
+  mutate(month = format(timeStamp, format = "%m"),
+         day = format(timeStamp, format = "%d"),
+         hour = format(timeStamp, format = "%H"),
+         minute = format(timeStamp, format = "%M"),
+         second = format(timeStamp, format = "%S"))
+
+# Total counts for each type
+
+data911 %>%
+  group_by(type) %>%
+  summarize(records = n())
+
+```
+
+From the output, we know that the total calls in 2019 for each of the categories: EMS emergency reported the most as 74,965 calls, Traffic emergency had 51,724 calls, and Fire emergency reported 22,252 calls in total.
+
+# Section 1 Categories of emergency calls in 2019 at the Montgomery County, PA
+
+## How frequent of every category of emergency/accident perform in 2019?
+
+The emergency calls are categorized into three types: EMS, Fire, and Traffic. In this section, I am going to do a basic analysis of the three categories. 
+
+```{r}
+
+# Daily calls per category of emergency
+
+type <- data911 %>% 
+  group_by(type, month, day) %>% 
+  summarize(records = n())
+
+# Plot histogram for three categories
+
+ggplot(data = type, mapping = aes(x = records, fill = type)) +
+  geom_histogram(color = "white", alpha = 0.6, binwidth = 3.5) +
+  scale_fill_manual(values = c('#c70039','#ff5733', '#ffc300')) +
+  labs(x = "Daily calls", y = "Counts", title = "Daily calls of three categoies in 2019") +
+  theme_minimal()
+
+# Checking the normality of the distribution of each category
+
+EMS.day <- type %>% filter(type == "EMS")
+skewness(EMS.day$records, na.rm = TRUE)
+kurtosis(EMS.day$records, na.rm = TRUE)
+
+Fire.day <- type %>% filter(type == "Fire")
+skewness(Fire.day$records, na.rm = TRUE)
+kurtosis(Fire.day$records, na.rm = TRUE)
+
+Traffic.day <- type %>% filter(type == "Traffic")
+skewness(Traffic.day$records, na.rm = TRUE)
+kurtosis(Traffic.day$records, na.rm = TRUE)
+
+# Calculating the central tendency of calls everyday in each category
+
+summary(EMS.day$records, na.rm = TRUE)
+summary(Fire.day$records, na.rm = TRUE)
+summary(Traffic.day$records, na.rm = TRUE)
+
+```
+
+Based on the calculation, non of the three distribution is normally distributed. 
+
+* From the visualization, the day-total EMS emergency calls distribution is leaning towards the right and not symmetrical. The skewness reports -0.3476423 (less than 0) and the kurtosis reports 4.118863 (slightly greater than 3), therefore the EMS distribution is Leptokurtic and slightly negatively skewed;
+
+* The visual shape of the Fire emergency (day-total) calls is leaning towards the left and it is also asymmetrical. The skewness returns a positive number: 4.274157 and kurtosis is 32.7113 (much greater than 3), so the Fire distribution is Leptokurtic and strongly positively skewed;
+
+* The visualization for Traffic emergency (day-total) calls is leaning towards the left and not symmetrical. The skewness (1.507153) is greater than 0 and the kurtosis (9.146128) is greater than 3. So the Traffic distribution is Leptokurtic and slightly positively skewed. 
+
+Based on the calculation of central tendency, the EMS category has the highest frequency of average daily call (205.4). It has a minimum of 125 calls and a maximum of 249 calls. The second-highest call frequency is the Traffic category. Even though the maximum is 427 calls, the mean (141.7) is less than the EMS daily average. The last is the Fire category, a minimum of 53 calls a day, a maximum of 236 calls a day, and a mean of 60.96 calls a day.
+
+
+## If the count of calls is dependent upon the types ("title" variable) of emergency?
+
+Zooming into each category, I would like to see the independence of the count of calls and the types of emergency.
+
+```{r}
+
+title.counts <- table(data911$title)
+
+nrow(title.counts)
+
+chisq.test(x = title.counts)
+
+```
+
+The reported p-value is 2.2e-16. Since the alpha level of 0.05, the p-value is below the alpha, and thus we reject the null hypothesis. Instead, we accept the alternative hypothesis: that the count of emergency calls is dependent upon the types of emergency.
+
+Next, I am going to look closer at the types of emergency calls and map out the location of each emergency.
+
+# Section 2 Types of emergency calls in 2019 at Montgomery County, PA
+
+### How are each type of emergency/accident located on the map? 
+
+In this section, I am going to observe the location and the call frequency (density of the distribution) of overall 120 types of emergency calls from analyzing the spacial aspect of the data.
+
+```{r}
+
+# Load your shape-file
+
+shapefile.pa <- readOGR(dsn = "./data/Montgomery_County_Boundary-shp/", layer = "County_Boundary")
+
+# Convert the shape-file to data frame
+
+shapefile.pa <- spTransform(shapefile.pa, CRS("+proj=longlat +datum=WGS84"))
+
+df <- tidy(shapefile.pa, region = "Name")
+
+# Filter data by categories in order to plot the small multiple
+
+EMS <- data911 %>% filter(type == "EMS")
+Fire <- data911 %>% filter(type == "Fire")
+Traffic <- data911 %>% filter(type == "Traffic")
+
+# Plot three small multiple visualizations by categories
+
+ggplot() +
+  geom_polygon(data = df, mapping = aes(x = long, y = lat, group = group), color = "black", fill = "#111111") +
+  geom_point(data = EMS, mapping = aes(x = lng, y = lat), size = 0.5, shape = 20, color = "#FFC300", alpha = 0.1) +
+  facet_wrap(vars(title)) +
+  labs(title = "Location of EMS category") +
+  theme_void() +
+  theme(strip.text.x = element_text(size = 3)) +
+  coord_map()
+
+ggplot() +
+  geom_polygon(data = df, mapping = aes(x = long, y = lat, group = group), color = "black", fill = "#111111") +
+  geom_point(data = Fire, mapping = aes(x = lng, y = lat), size = 0.5, shape = 20, color = "#FFC300", alpha = 0.1) +
+  facet_wrap(vars(title)) +
+  labs(title = "Location of Fire category") +
+  theme_void() +
+  theme(strip.text.x = element_text(size = 4)) +
+  coord_map()
+
+ggplot() +
+  geom_polygon(data = df, mapping = aes(x = long, y = lat, group = group), color = "black", fill = "#111111") +
+  geom_point(data = Traffic, mapping = aes(x = lng, y = lat), size = 0.5, shape = 20, color = "#FFC300", alpha = 0.1) +
+  facet_wrap(vars(title)) +
+  labs(title = "Location of Traffic category") +
+  theme_void() +
+  theme(strip.text.x = element_text(size = 5)) +
+  coord_map()
+```
+
+According to the small multiple, there are almost 30 types of EMS emergency category have high call frequency during 2019 in Montgomery County, for example, the "FALL VICTIM" and "RESPIRATORY EMERGENCY" have a relatively high density on the map; 
+
+In the Fire category, the “FIRE ALARM” type had the most calls and highest density, the "VEHICLE ACCIDENT" has the second-highest density in 2019; 
+
+Lastly, there are not many types for the Traffic category, the "VEHICLE ACCIDENT" type received most frequent calls and the "DISABLED VEHICLE" type received a bit fewer calls than the "VEHICLE ACCIDENT" type.
+
+# Is a statistically significant difference between the selected types?
+
+I will be using independent t-test to analysis this question. There will be two types of emergencies picked out from each category based on the similarity of density on the above visualization. 
+
+```{r}
+
+# Group data by title
+
+title <- data911 %>%
+  group_by(title, month, day) %>%
+  summarize(records = n())
+
+# Pick two types as sample for t-test
+
+ems1 <- title %>%
+  filter(title == "EMS: FRACTURE")
+ems2 <- title %>%
+  filter(title == "EMS: LACERATIONS")
+
+t.test(x = ems1$records, y = ems2$records, var.equal = TRUE)
+
+fire1 <- title %>%
+  filter(title == "Fire: BUILDING FIRE")
+fire2 <- title %>%
+  filter(title == "Fire: ELECTRICAL FIRE OUTSIDE")
+
+t.test(x = fire1$records, y = fire2$records, var.equal = TRUE)
+  
+traffic1 <- title %>%
+  filter(title == "Traffic: HAZARDOUS ROAD CONDITIONS -")
+traffic2 <- title %>%
+  filter(title == "Traffic: VEHICLE FIRE -")
+
+t.test(x = traffic1$records, y = traffic2$records, var.equal = TRUE)
+
+```
+Examine the p-value, all three values are smaller than the alpha level 0.05. Since the p-value is smaller than the alpha-level, I reject the null hypothesis that there is not a significant difference between the two mean numbers. Even though the density on the map looks similar, we accept the alternative hypothesis:
+
+* EMS group: p-value = 2.177e-06
+There is a statistically significant difference between the average daily call of "EMS: FRACTURE" and the average daily call of "EMS: LACERATIONS".
+
+* Fire group: p-value = 0.00797
+There is a statistically significant difference between the average daily call "Fire: BUILDING FIRE" and the average daily call of "Fire: ELECTRICAL FIRE OUTSIDE".
+
+* Traffic group: p-value = 1.898e-08
+There is a statistically significant difference between the average daily call of "Traffic: HAZARDOUS ROAD CONDITIONS" and the average daily call of "Traffic: VEHICLE FIRE".
+
+
+# Section 3 Emergency calls in 2019 at one chosen zipcode in Montgomery County 
+
+### Who are the top three zipcode of emergency call reports?
+
+This section will only focus on one zipcode to analyze. In order to find the township I will be working on, I am going to sort out the top 3 call reports in 2019. I think the second place (zipcode:19464) is a good one to dive in. 
+
+```{r}
+
+# Filter data with zipcode 
+
+zipcode <- data911 %>% 
+  group_by(zip) %>%
+  summarize(records = n()) %>%
+  arrange(desc(records))
+
+# Select the top three reports
+
+zipcode %>% top_n(4)
+
+
+```
+
+### How is each category performed at zipcode 19464 in 2019?
+
+I will do some quick basic analysis on the overall data for zipcode with 19464.
+
+Weather data source:
+[Climate PSU](http://www.climate.psu.edu/data/ida/)
+[US Climate Data](https://www.usclimatedata.com/climate/pottstown/pennsylvania/united-states/uspa3545)
+
+```{r}
+# Load and organize data
+
+weather <- read_csv("./data/weather.csv") %>%
+  mutate(month = format(Day, format = "%m"),
+         day = format(Day, format = "%d"),
+         `ave(F)` = (`High(F)`+`Low(F)`)/2)
+
+pot.join <- data911 %>% 
+  filter(zip == "19464") %>% 
+  left_join (weather, by = c("month", "day")) %>%
+  group_by(type, month, day) %>% 
+  summarize(records = n(), `ave.temp(F)` = mean(`ave(F)`, na.rm = TRUE), `ave.pre(in)` = mean(Precip.inch, na.rm = TRUE))
+
+# Plot density distribution 
+
+ggplot(data = pot.join, mapping = aes(x = records, fill = type)) +
+  geom_density(color = "white", alpha = 0.6)+
+  scale_fill_manual(values=c('#c70039','#ff5733', '#ffc300'))+
+  labs(x = "Daily calls", y = "Density", title = "Daily calls of zipcode 19464 in 2019") 
+
+# Filter data to each category
+
+pot.ems <- pot.join %>% filter( type == "EMS")
+pot.fire <- pot.join %>% filter( type == "Fire")
+pot.traffic <- pot.join %>% filter( type == "Traffic")
+
+# Check normally of each category
+
+shapiro.test(pot.ems$records)
+shapiro.test(pot.fire$records)
+shapiro.test(pot.traffic$records)
+
+# Calculate the central tendency of each category
+
+summary(pot.ems$records, na.rm = TRUE)
+summary(pot.fire$records, na.rm = TRUE)
+summary(pot.traffic$records, na.rm = TRUE)
+
+# Difference between each category
+  
+t.test(x = pot.traffic$records, y = pot.fire$records, var.equal = TRUE)
+t.test(x = pot.traffic$records, y = pot.ems$records, var.equal = TRUE)
+t.test(x = pot.fire$records, y = pot.ems$records, var.equal = TRUE)
+
+
+```
+According to the result from above, 
+
+**Normality Test:**
+Since three p-values returned less than 0.05, so non of the distribution is normally distributed.
+
+Mean of daily calls of each category are: 
+
++ EMS 15.51 calls/day
++ Fire 4.76 calls/day
++ Traffic 6.03 calls/day
+
+EMS emergency has the highest daily average at zipcode 19464
+
+**Difference between each category:**
+All three p-values are much smaller than the alpha level 0.05. Since the p-value is smaller than the alpha-level, I reject the null hypothesis that there is not a significant difference between two mean numbers. We accept the alternative hypothesis:
+
+* Traffic vs Fire: p-value = 5.364e-05
+There is a statistically significant difference between the average daily call of the Traffic category and the average daily call of the Fire category.
+
+* Traffic vs EMS: p-value < 2.2e-16
+There is a statistically significant difference between the average daily call of the Traffic category and the average daily call of the EMS category.
+
+* Fire vs EMS: p-value < 2.2e-16
+There is a statistically significant difference between the average daily call of the Fire category and the average daily call of the EMS category.
+
+
+### How are each category located?
+
+```{r}
+
+pot.data <- data911 %>% filter(zip == "19464") 
+
+points <- data.frame(long = c(-75.66, -75.66, -75.62, -75.62), lat = c(40.238, 40.27, 40.27, 40.238))
+
+ggplot() +
+  geom_polygon(data = df, mapping = aes(x = long, y = lat, group = group), color = "#111111", fill = "#111111") +
+  geom_point(data = pot.data, mapping = aes(x = lng, y = lat, color = type), size = 1, shape = 20, alpha = 1) +
+  geom_polygon(data = points,  mapping = aes(x = long, y = lat), fill = 'transparent', lwd = 0.5, color = "gray")+
+  scale_color_manual(values=c('#c70039','#ff5733', '#ffc300')) +
+  coord_map(xlim = c(-75.69, -75.55), ylim = c(40.21, 40.30))+
+  labs(x = "Longitude", y = "Latitude", title = "Case distribution of zipcode 19464") +
+  theme_minimal()
+
+
+```
+
+Regarding the map, between longitude -75.66 to -75.62 and latitude 40.238 to 40.27 has the highest density, most of the emergency calls are reported around that area.
+
+### Is there a relationship between the emergency cases and the weather or the precipitation?
+
+In general, if we ask "what may cause an increase in a traffic accident?", we would think about the weather. For example, heavy rain or heavy snow may reduce visibility, therefore, cause a car accident. So for the next analysis, I will check if the temperature and precipitation can cause the increase or decrease of any emergencies.
+
+```{r}
+
+# Create scatter plot for cases and temperature/precipitation
+
+ggplot(data = pot.join, mapping = aes(x = `ave.temp(F)`, y = records, color = type)) +
+  geom_point() +
+  scale_color_manual(values=c('#c70039','#ff5733', '#ffc300'))+
+  geom_smooth(method = "lm") +
+  labs(x = "Average temperature (F)", y = "Emergency call counts") +
+  theme_minimal()
+
+ggplot(data = pot.join, mapping = aes(x = `ave.pre(in)`, y = records, color = type)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values=c('#c70039','#ff5733', '#ffc300'))+
+  labs(x = "Average precipitation (in)", y = "Emergency call counts") +
+  theme_minimal()
+
+# Correlation tests between each category and temperature/precipitation
+
+cor.test(x = pot.ems$records, y =  pot.ems$`ave.temp(F)`)
+cor.test(x = pot.fire$records, y =  pot.fire$`ave.temp(F)`)
+cor.test(x = pot.traffic$records, y =  pot.traffic$`ave.temp(F)`)
+
+cor.test(x = pot.ems$records, y =  pot.ems$`ave.pre(in)`)
+cor.test(x = pot.fire$records, y =  pot.fire$`ave.pre(in)`)
+cor.test(x = pot.traffic$records, y =  pot.traffic$`ave.pre(in)`)
+
+# Linear regression
+
+fire.pre <- lm(formula = records ~ `ave.pre(in)`, data = pot.fire)
+traffic.pre <- lm(formula = records ~ `ave.pre(in)`, data = pot.traffic)
+
+summary(fire.pre)
+summary(traffic.pre)
+```
+
+**Temperature**: 
+First of all, from the scatter plot, there is barely any linear relationship between the temperature and the three categories of emergency call counts (the case counts). Second of all, the tests return: 
+
+* correlation coefficient for EMS and temp: 0.05805133 (positive, not strong)
+* correlation coefficient for Fire and temp: 0.130901 (positive, not strong)
+* correlation coefficient for Traffic and temp: -0.01481372 (negative, not strong)
+
+As conclusion, there is not really a correlation between all emergencies call(case) numbers and temperature.
+
+**Precipitation**: 
+From the scatter plot, there might be a linear relationship between the precipitation vs Fire emergency and precipitation vs traffic emergency call counts (the case counts). Based on the result of the test: 
+
+* correlation coefficient for EMS and prec: -0.02658546 (negative, not strong)
+* correlation coefficient for Fire and prec: 0.3906771 (positive, not as strong)
+* correlation coefficient for Traffic and prec: 0.3030337 (positive, not as strong)
+
+In conclusion, there is a small amount of correlation between Traffic emergency call(case) numbers and precipitation; the slightly higher correlation between Fire emergency call(case) numbers and precipitation.
+
+Linear regression model for the Fire emergency:
+Fire emergency records = 4.6181 * ave.pre(in) + 4.1373
+
+The R-squared value for this model is 0.1526, which is far from 1, which indicates a low-quality regression: the values of Fire emergency calls(case) cannot be predicted well as a function of precipitation, using this model. That being said, 15.26% of the total variability in the dependent variable (Fire emergency calls) is explained by its regression on the independent variable (precipitation);
+
+Linear regression model for the Traffic emergency:
+Traffic emergency records = 4.0228 * ave.pre(in) + 5.4485
+
+The R-squared value for this model is 0.09183, which is also far from 1, which indicates a low-quality regression: the values of Traffic emergency calls(case) cannot be predicted well as a function of precipitation, using this model. In another hand, only 9.18% of the total variability in the dependent variable (Traffic emergency calls) is explained by its regression on the independent variable (precipitation).
+
+
+# Summarize 
+
+Regarding the analysis, EMS emergency received the most calls not only in total(74965 calls) but also the average per day(205.4 calls) throughout Montgomery County in 2019. The Traffic emergency also received a large amount calls (51724 calls). Even though the daily average call is 141.7, there is a max of 427 calls received on November 1st of 2019. The Fire emergency calls are not as severe as the other two categories (22252	calls total), but still with a daily call received of almost 70(60.96 calls). 
+
+There might be another factor that affects the number of emergency calls. So far, the final result for zipcode of 19464, the temperature and precipitation are not the direct influence for the increase or decrease of emergency calls. 
+
+### What's next
+
+My next step might focus on the comparison between two zipcode area or two different township.
+
+```{r}
+
+data401 <- data911 %>% 
+  filter(zip == "19401") %>% 
+  group_by(type, month, day) %>%
+  summarize(records = n())
+
+data403 <- data911 %>% 
+  filter(zip == "19403") %>% 
+  group_by(type, month, day) %>%
+  summarize(records = n())
+
+ggplot(mapping = aes(x = records, fill = type)) +
+  geom_density(data = data401, color = "white", alpha = 0.3)+
+  geom_density(data = data403, color = "white", alpha = 0.8)+
+  scale_fill_manual(values=c('#c70039','#ff5733', '#ffc300'))+
+  labs(x = "Daily calls", y = "Density", title = "Daily calls of zipcode 19401(light) vs 19403(dark) in 2019")
+
+t.test(x = data401$records, y = data403$records, var.equal = TRUE)
+
+```
+

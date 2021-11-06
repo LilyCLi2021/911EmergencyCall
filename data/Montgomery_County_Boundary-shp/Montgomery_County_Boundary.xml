@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?><metadata>
+    <idinfo>
+        <citation>
+            <citeinfo>
+                <pubdate>20190122</pubdate>
+                <pubtime>140000</pubtime>
+                <title>County_Boundary</title>
+                <geoform>vector digital data</geoform>
+            </citeinfo>
+        </citation>
+        <descript>
+            <abstract>This layer shows the county boundary of Montgomery County, Pennsylvania.  The boundary is for reference purposes only and not a legal surveyed boundary.</abstract>
+            <purpose>Montgomery County Boundary</purpose>
+        </descript>
+        <status>
+            <update>Irregular</update>
+        </status>
+        <spdom>
+            <bounding>
+                <westbc>-75.704288</westbc>
+                <eastbc>-75.002880</eastbc>
+                <northbc>40.450062</northbc>
+                <southbc>39.971176</southbc>
+            </bounding>
+        </spdom>
+        <keywords>
+            <theme>
+                <themekt>None</themekt>
+                <themekey>Boundaries, County</themekey>
+            </theme>
+            <theme>
+                <themekt>ISO 19115 Topic Categories</themekt>
+                <themekey>boundaries</themekey>
+            </theme>
+        </keywords>
+        <accconst>None</accconst>
+        <useconst>Montgomery County provides this data as a free and open resource.While every reasonable effort is made to ensure the accuracy and completeness of the data, Montgomery County makes no representations about the suitability of this data for any purpose. All data is provided &amp;quot;as is&amp;quot; without warranties of any kind, either express or implied, and it should not be construed or used as a legal description.</useconst>
+        <datacred>Montgomery County GIS</datacred>
+        <native>Esri ArcGIS 12.5.0.22081</native>
+    </idinfo>
+    <spdoinfo>
+        <direct>Vector</direct>
+        <ptvctinf>
+            <sdtsterm>
+                <sdtstype>GT-polygon composed of chains</sdtstype>
+                <ptvctcnt>1</ptvctcnt>
+            </sdtsterm>
+        </ptvctinf>
+    </spdoinfo>
+    <eainfo>
+        <detailed>
+            <enttyp>
+                <enttypl>County_Boundary</enttypl>
+            </enttyp>
+            <attr>
+                <attrlabl>OBJECTID</attrlabl>
+                <attrdef>Internal feature number.</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Sequential unique whole numbers that are automatically generated.</udom>
+                                    
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>SHAPE</attrlabl>
+                <attrdef>Feature geometry.</attrdef>
+                <attrdefs>ESRI</attrdefs>
+                <attrdomv>
+                                        
+                    <udom>Coordinates defining the features.</udom>
+                                    
+                </attrdomv>
+            </attr>
+            <attr>
+                <attrlabl>Name</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>PA_County_Code</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>FIPS_County_Code</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Federal_ID_Number</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>GEOID</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Sq_Miles</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Web_URL</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Shape.STArea()</attrlabl>
+            </attr>
+            <attr>
+                <attrlabl>Shape.STLength()</attrlabl>
+            </attr>
+        </detailed>
+    </eainfo>
+    <distinfo>
+        <distliab>See access and use constraints information.</distliab>
+        <stdorder>
+            <digform>
+                <digtinfo>
+                    <formname>Feature Class</formname>
+                </digtinfo>
+                <digtopt/>
+            </digform>
+        </stdorder>
+    </distinfo>
+    <metainfo>
+        <metd>20200512</metd>
+        <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+        <metuc>This data is for reference purposes only.</metuc>
+    </metainfo>
+</metadata>
